@@ -125,12 +125,14 @@ func runHandler(w http.ResponseWriter, r *http.Request) {
 		data.ShowSolution = false
 
 		// Запускаем асинхронный запрос к DeepSeek
+		// Запускаем асинхронный запрос к DeepSeek
 		go func() {
-			solution, err := getSolutionFromDeepSeek(code, err.Error())
-			if err == nil {
-				// Здесь можно добавить логику для обновления страницы через WebSocket или другой механизм
-				// В текущей реализации пользователю нужно будет повторно отправить код, чтобы увидеть решение
-				log.Println("Received solution from DeepSeek:", solution)
+
+			if err != nil { // Добавляем проверку
+				solution, solutionErr := getSolutionFromDeepSeek(code, err.Error())
+				if solutionErr == nil {
+					log.Println("Received solution from DeepSeek:", solution)
+				}
 			}
 		}()
 	} else {
