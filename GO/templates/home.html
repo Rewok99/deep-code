@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Go Компилятор</title>
+    <!-- CodeMirror CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/dracula.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github.min.css">
+    <style>
+        :root {
+            --primary: #4cafa3;
+            --primary-hover: #45a09b;
+            --error: #ff4444;
+            --error-bg: #ffe6e6;
+            --success: #00C851;
+            --success-bg: #e6ffe6;
+            --info: #33b5e5;
+            --info-bg: #e6f3ff;
+            --dark: #2d3436;
+            --light: #f8f9fa;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 0;
+        }
+
+        
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            background-color: var(--primary);
+            color: white;
+            padding: 10px 0;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            margin: 0;
+            font-size: 2rem;
+            text-align: center;
+        }
+        
+        .editor-container {
+            margin-bottom: 20px;
+            border-radius: 5px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .CodeMirror {
+            height: auto;
+            font-size: 14px;
+            border-radius: 5px 5px 0 0;
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+            padding: 10px 15px;
+            border-radius: 0 0 5px 5px;
+            border: 1px solid #ddd;
+            border-top: none;
+        }
+        
+        button {
+            padding: 8px 16px;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: var(--primary-hover);
+        }
+        
+        .output-container {
+            margin-top: 20px;
+        }
+        
+        .output-box {
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        
+        .output-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .output-title svg {
+            margin-right: 8px;
+        }
+        
+        .output-content {
+            white-space: pre-wrap;
+            font-family: 'Consolas', 'Monaco', monospace;
+            overflow-x: auto;
+        }
+        
+        .success {
+            background-color: var(--success-bg);
+            border-left: 4px solid var(--success);
+        }
+        
+        .error {
+            background-color: var(--error-bg);
+            border-left: 4px solid var(--error);
+        }
+        
+        .solution {
+            background: linear-gradient(120deg, #e6f3ff 60%, #f8f9fa 100%);
+            border-left: 5px solid var(--info);
+            box-shadow: 0 4px 24px rgba(51,181,229,0.10), 0 1.5px 4px rgba(51,181,229,0.08);
+            transition: box-shadow 0.3s, background 0.3s;
+            animation: fadeIn 0.5s;
+            margin-top: 10px;
+            padding: 20px 24px 20px 20px;
+            position: relative;
+            overflow-x: auto;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px);}
+            to { opacity: 1; transform: translateY(0);}
+        }
+
+        #solution-box .output-title {
+            font-size: 1.1rem;
+            color: var(--info);
+            margin-bottom: 12px;
+            align-items: center;
+            gap: 8px;
+        }
+
+        #solution-content {
+            font-size: 1rem;
+            color: #222;
+            line-height: 1.7;
+            max-height: 400px;
+            overflow: auto;
+            padding-right: 4px;
+        }
+
+        #solution-content pre {
+            background: #f8f9fa; /* светлый фон вместо тёмного */
+            color: #23272e;      /* тёмный текст */
+            border-radius: 6px;
+            padding: 14px 16px;
+            margin: 18px 0;
+            font-size: 0.98em;
+            box-shadow: 0 2px 8px rgba(51,181,229,0.07);
+            overflow-x: auto;
+        }
+
+        #solution-content code {
+            font-family: 'Fira Mono', 'Consolas', 'Monaco', monospace;
+            font-size: 0.98em;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .status {
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 3px solid #3498db;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-left: 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            header {
+                padding: 15px 0;
+            }
+            
+            h1 {
+                font-size: 1.5rem;
+            }
+        }
+
+        #solution-content pre,
+        #solution-content pre code,
+        #solution-content code,
+        #solution-content .hljs {
+            background: #f8f9fa !important;
+            color: #23272e !important;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>Go Compiler</h1>
+        </div>
+    </header>
+    
+    <main class="container">
+        <form id="code-form" action="/run" method="POST">
+            <div class="editor-container">
+                <textarea id="code-editor" name="code">{{if .Code}}{{.Code}}{{else}}{{.CodeTemplate}}{{end}}</textarea>
+            </div>
+            <div class="controls">
+                <button type="submit">Выполнить</button>
+                <span class="status" id="status"></span>
+            </div>
+        </form>
+        
+        <div class="output-container">
+            <div id="output-box" class="output-box success {{if not .Compiled}}hidden{{end}}">
+                <div class="output-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                    Вывод
+                </div>
+                <div class="output-content">{{.Output}}</div>
+            </div>
+            
+            <div id="error-box" class="output-box error {{if not .Error}}hidden{{end}}">
+                <div class="output-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="8" x2="12" y2="12"></line>
+                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
+                    Ошибка
+                </div>
+                <div class="output-content">{{.Error}}</div>
+            </div>
+            
+            <div id="solution-box" class="output-box solution hidden">
+                <div class="output-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10 9 9 9 8 9"></polyline>
+                    </svg>
+                    AI Помощь
+                </div>
+                <div class="output-content" id="solution-content"></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- CodeMirror JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/go/go.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <script>
+        // Initialize CodeMirror
+        let editor = CodeMirror.fromTextArea(document.getElementById('code-editor'), {
+            mode: 'go',
+            theme: 'dracula',
+            lineNumbers: true,
+            indentUnit: 4,
+            tabSize: 4,
+            lineWrapping: true,
+            autoCloseBrackets: true,
+            matchBrackets: true,
+            extraKeys: {
+                'Ctrl-Enter': function() {
+                    document.querySelector('form').submit();
+                }
+            }
+        });
+        
+        // Set editor height based on content
+        function adjustEditorHeight() {
+            const wrapper = editor.getWrapperElement();
+            wrapper.style.height = 'auto';
+            const height = Math.min(editor.doc.height * 20 + 30, 500);
+            wrapper.style.height = height + 'px';
+            editor.refresh();
+        }
+        
+        editor.on('change', adjustEditorHeight);
+        adjustEditorHeight();
+
+        const runButton = document.querySelector('button[type="submit"]');
+
+        function updateRunButtonState() {
+            const code = editor.getValue();
+            if (code.trim() === "") {
+                runButton.disabled = true;
+            } else {
+                runButton.disabled = false;
+            }
+        }
+
+        // Проверяем при каждом изменении
+        editor.on('change', updateRunButtonState);
+        // Проверяем при загрузке страницы
+        updateRunButtonState();
+        
+        // Form submission handling
+        document.getElementById('code-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const status = document.getElementById('status');
+            status.textContent = 'Running code...';
+            
+            // Hide all output boxes initially
+            document.querySelectorAll('.output-box').forEach(box => {
+                box.classList.add('hidden');
+            });
+            
+            // Show loader for solution if it's shown later
+            // document.getElementById('solution-loader').classList.add('hidden'); // удалено
+            
+            // Submit form via AJAX
+            const formData = new FormData(this);
+            fetch('/run', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.text())
+            .then(html => {
+                // Create a temporary div to parse the HTML
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = html;
+                
+                // Update output boxes
+                const outputBox = tempDiv.querySelector('#output-box');
+                const errorBox = tempDiv.querySelector('#error-box');
+                
+                if (outputBox && !outputBox.classList.contains('hidden')) {
+                    document.getElementById('output-box').classList.remove('hidden');
+                    document.getElementById('output-box').querySelector('.output-content').textContent = 
+                        outputBox.querySelector('.output-content').textContent;
+                }
+                
+                if (errorBox && !errorBox.classList.contains('hidden')) {
+                    document.getElementById('error-box').classList.remove('hidden');
+                    document.getElementById('error-box').querySelector('.output-content').textContent = 
+                        errorBox.querySelector('.output-content').textContent;
+                    
+                    // Request solution from AI
+                    requestSolution(editor.getValue(), errorBox.querySelector('.output-content').textContent);
+                }
+                
+                status.textContent = '';
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                status.textContent = 'Error occurred';
+            });
+        });
+        
+        function requestSolution(code, error) {
+            const solutionBox = document.getElementById('solution-box');
+            const solutionContent = document.getElementById('solution-content');
+            // solutionLoader удалён
+            
+            solutionBox.classList.remove('hidden');
+            solutionContent.textContent = 'Запрашиваем помощь у AI...';
+            // solutionLoader.classList.remove('hidden'); // удалено
+            
+            fetch('/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    message: `У меня есть этот Go код:\n\n${code}\n\nОн вызывает такую ошибку:\n\n${error}\n\nПожалуйста, предоставь исправленную версию кода и объясни, что было не так. Ответь на русском языке.`
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Форматируем markdown-код
+                solutionContent.innerHTML = formatMarkdownCode(data.response);
+                // Подсвечиваем код
+                document.querySelectorAll('#solution-content pre code').forEach((block) => {
+                    hljs.highlightElement(block);
+                });
+            })
+            .catch(err => {
+                solutionContent.textContent = 'Не удалось получить помощь от AI: ' + err.message;
+                // solutionLoader.classList.add('hidden'); // удалено
+            });
+        }
+
+        function formatMarkdownCode(text) {
+            // Заменяем блоки кода на <pre><code>
+            return text.replace(/```(\w+)?\n([\s\S]*?)```/g, function(match, lang, code) {
+                // lang — это go, python и т.д., но мы его не включаем в код
+                const escaped = code.replace(/[&<>"']/g, function(m) {
+                    return ({
+                        '&': '&amp;',
+                        '<': '&lt;',
+                        '>': '&gt;',
+                        '"': '&quot;',
+                        "'": '&#39;'
+                    })[m];
+                });
+                // Добавим класс языка для highlight.js, если он есть
+                const langClass = lang ? ` class="language-${lang}"` : '';
+                return `<pre><code${langClass}>${escaped}</code></pre>`;
+            });
+        }
+    </script>
+</body>
+</html>
