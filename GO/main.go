@@ -31,7 +31,7 @@ type PageData struct {
 	Compiled     bool
 	ShowSolution bool
 	Solution     string
-	CodeTemplate string // Добавьте это поле
+	CodeTemplate string
 }
 
 type ChatRequest struct {
@@ -124,7 +124,6 @@ func runHandler(w http.ResponseWriter, r *http.Request) {
 		// Показываем ошибку сразу
 		data.ShowSolution = false
 
-		// Запускаем асинхронный запрос к DeepSeek
 		// Запускаем асинхронный запрос к DeepSeek
 		go func() {
 
